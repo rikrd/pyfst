@@ -1,3 +1,7 @@
+# distutils: language = c++
+# distutils: libraries = fst
+# distutils: extra_compile_args = -O2 -std=c++11
+
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp.pair cimport pair

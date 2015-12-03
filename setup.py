@@ -1,7 +1,13 @@
+import glob
+import logging
+import subprocess
 import sys
 import os
+import distutils
+from distutils.cmd import Command
 from distutils.core import setup
 from distutils.extension import Extension
+from Cython.Build import cythonize
 
 INC, LIB = [], []
 
@@ -10,14 +16,46 @@ if sys.platform == 'darwin' and os.path.isdir('/opt/local/lib'):
     INC.append('/opt/local/include')
     LIB.append('/opt/local/lib')
 
+# Homebrew
+if sys.platform == 'darwin' and os.path.isdir('/usr/local/lib'):
+    INC.append('/usr/local/include')
+    LIB.append('/usr/local/lib')
+
+
 ext_modules = [
     Extension(name='fst._fst',
-        sources=['fst/_fst.cpp'],
-        libraries=['fst'],
-        extra_compile_args=['-O2'],
-        include_dirs=INC,
-        library_dirs=LIB)
+              sources=['fst/_fst.pyx.tpl', 'fst/libfst.pxd.tpl', 'fst/types.yml'],
+              include_dirs=INC,
+              library_dirs=LIB)
 ]
+
+
+def mustachize(modules, mustache_command='mustache'):
+    """Run command."""
+    for module in modules:
+        sources = module.sources
+
+        yamls = [source for source in sources if os.path.splitext(source)[-1] in {'.yml'}]
+        templates = [source for source in sources if os.path.splitext(source)[-1] in {'.tpl'}]
+
+        new_sources = []
+        for template in templates:
+            new_source, new_ext = os.path.splitext(template)
+            cmd = 'cat {yamls} | {mustache_cmd} - {template} > {new_source}'.format(yamls=' '.join(yamls),
+                                                                                    template=template,
+                                                                                    new_source=new_source,
+                                                                                    mustache_cmd=mustache_command)
+            logging.info('Running command: %s' % str(cmd))
+            subprocess.check_call(cmd, shell=True)
+
+            _, new_ext = os.path.splitext(new_source)
+            if new_ext in {'.pyx'}:
+                new_sources.append(new_source)
+
+        module.sources[:] = new_sources
+
+    return modules
+
 
 long_description = """
 pyfst
@@ -59,5 +97,5 @@ setup(
                  'Intended Audience :: Education',
                  'Intended Audience :: Science/Research'],
     packages=['fst'],
-    ext_modules=ext_modules
+    ext_modules=cythonize(mustachize(ext_modules)),
 )

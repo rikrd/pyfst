@@ -1,3 +1,6 @@
+# distutils: language = c++
+# distutils: extra_compile_args = -O2 -std=c++11
+
 cimport libfst
 cimport sym
 import subprocess
