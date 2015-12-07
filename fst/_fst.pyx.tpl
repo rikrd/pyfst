@@ -92,6 +92,15 @@ cdef class SymbolTable:
         """table.write(filename): save the symbol table to filename"""
         self.table.Write(as_str(filename))
 
+    def to_bytes(self):
+        """table.to_bytes(): binary representation of the symbol table to a Python bytes object"""
+
+        cdef ostringstream out
+        result = self.table.WriteStream(out)
+        cdef bytes out_str = out.str()
+
+        return out_str
+
     def find(self, key):
         """table.find(int value) -> decoded symbol if any symbol maps to this value
         table.find(str symbol) -> encoded value if this symbol is in the table"""

@@ -1,5 +1,5 @@
 from libcpp.string cimport string
-from util cimport istream
+from util cimport istream, ostream
 
 cdef extern from "<fst/symbol-table.h>" namespace "fst":    
     cdef cppclass SymbolTable:
@@ -9,7 +9,7 @@ cdef extern from "<fst/symbol-table.h>" namespace "fst":
         long AddSymbol(string &symbol)
         string& Name()
         bint Write(string &filename)
-        #WriteText (ostream &strm)
+        bint WriteStream "Write" (ostream &strm)
         string Find(long key)
         long Find(const char* symbol)
         unsigned NumSymbols()
