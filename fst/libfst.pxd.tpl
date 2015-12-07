@@ -34,11 +34,15 @@ cdef extern from "<fst/fstlib.h>" namespace "fst":
         void Next()
         Arc& Value()
 
+    cdef cppclass FstWriteOptions:
+        FstWriteOptions(const string& src, bint hdr, bint isym, bint osym)
+
     cdef cppclass Fst:
         int Start()
         unsigned NumArcs(int s)
         Fst* Copy()
         bint Write(string& filename)
+        bint WriteStream "Write" (ostream& strm, const FstWriteOptions& opts)
         uint64_t Properties(uint64_t mask, bint compute)
 
     cdef cppclass ExpandedFst(Fst):
@@ -146,7 +150,7 @@ cdef extern from "<fst/fstlib.h>" namespace "fst":
     cdef void Difference(Fst &ifst1, Fst &ifst2, MutableFst* ofst)
     cdef void Intersect(Fst &ifst1, Fst &ifst2, MutableFst* ofst)
     cdef void Reverse(Fst &ifst, MutableFst* ofst)
-    cdef void ShortestPath(Fst &ifst, MutableFst* ofst, unsigned n)
+    cdef void ShortestPath(Fst &ifst, MutableFst* ofst, unsigned n, bint unique, bint first_path)
     cdef void ArcMap (Fst &ifst, MutableFst* ofst, ArcMapper mapper)
 {{#types}}
     cdef void ShortestDistance(Fst &fst, vector[{{weight}}]* distance, bint reverse)

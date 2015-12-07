@@ -7,6 +7,9 @@ import distutils
 from distutils.cmd import Command
 from distutils.core import setup
 from distutils.extension import Extension
+
+import pystache
+import yaml
 from Cython.Build import cythonize
 
 INC, LIB = [], []
@@ -30,29 +33,49 @@ ext_modules = [
 ]
 
 
-def mustachize(modules, mustache_command='mustache'):
+def pystache_render(template_filename, context_filenames, rendered_filename):
+    with open(rendered_filename, 'w') as rendered:
+        with open(template_filename) as template:
+            contexts = []
+            for context_filename in context_filenames:
+                with open(context_filename) as context:
+                    contexts += list(yaml.load_all(context))
+
+            rendered.write(pystache.render(template.read(), context=contexts[0]))
+
+
+def mustache_cmd_render(template_filename, context_filenames, rendered_filename, mustache_cmd='mustache'):
+    cmd = 'cat {yamls} | {mustache_cmd} - {template} > {rendered}'.format(yamls=' '.join(context_filenames),
+                                                                          template=template_filename,
+                                                                          rendered=rendered_filename,
+                                                                          mustache_cmd=mustache_cmd)
+    logging.info('Running command: %s' % str(cmd))
+    subprocess.check_call(cmd, shell=True)
+
+
+def mustachize(modules, mustache_command=''):
     """Run command."""
     for module in modules:
         sources = module.sources
 
-        yamls = [source for source in sources if os.path.splitext(source)[-1] in {'.yml'}]
+        context_filenames = [source for source in sources if os.path.splitext(source)[-1] in {'.yml'}]
         templates = [source for source in sources if os.path.splitext(source)[-1] in {'.tpl'}]
+        other = set(sources) - set(context_filenames) - set(templates)
 
         new_sources = []
         for template in templates:
-            new_source, new_ext = os.path.splitext(template)
-            cmd = 'cat {yamls} | {mustache_cmd} - {template} > {new_source}'.format(yamls=' '.join(yamls),
-                                                                                    template=template,
-                                                                                    new_source=new_source,
-                                                                                    mustache_cmd=mustache_command)
-            logging.info('Running command: %s' % str(cmd))
-            subprocess.check_call(cmd, shell=True)
+            rendered, new_ext = os.path.splitext(template)
 
-            _, new_ext = os.path.splitext(new_source)
+            if mustache_command:
+                mustache_cmd_render(template, context_filenames, rendered, mustache_cmd=mustache_command)
+            else:
+                pystache_render(template, context_filenames, rendered)
+
+            _, new_ext = os.path.splitext(rendered)
             if new_ext in {'.pyx'}:
-                new_sources.append(new_source)
+                new_sources.append(rendered)
 
-        module.sources[:] = new_sources
+        module.sources[:] = list(other) + new_sources
 
     return modules
 

@@ -7,6 +7,7 @@ import subprocess
 import random
 import re
 
+from libcpp cimport bool as boolean
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp.pair cimport pair
@@ -445,11 +446,30 @@ cdef class {{fst}}(_Fst):
             self.fst.SetInputSymbols(self.isyms.table)
         if keep_osyms and self.osyms is not None:
             self.fst.SetOutputSymbols(self.osyms.table)
-        result = self.fst.Write(as_str(filename))
+        result = self.fst.Write(<string&>as_str(filename))
         # reset symbols:
         self.fst.SetInputSymbols(NULL)
         self.fst.SetOutputSymbols(NULL)
         return result
+
+    def to_bytes(self, keep_isyms=False, keep_osyms=False):
+        """fst.to_bytes(): return the binary representation of the transducer as a bytes objects"""
+        if keep_isyms and self.isyms is not None:
+            self.fst.SetInputSymbols(self.isyms.table)
+        if keep_osyms and self.osyms is not None:
+            self.fst.SetOutputSymbols(self.osyms.table)
+
+        cdef libfst.FstWriteOptions* options = new libfst.FstWriteOptions("<unspecifed>", True, keep_isyms, keep_osyms)
+        cdef ostringstream out
+        result = self.fst.WriteStream(out, options[0])
+        del options
+        cdef bytes out_str = out.str()
+
+        # reset symbols:
+        self.fst.SetInputSymbols(NULL)
+        self.fst.SetOutputSymbols(NULL)
+
+        return out_str
 
     property input_deterministic:
         def __get__(self):
@@ -596,12 +616,12 @@ cdef class {{fst}}(_Fst):
         dist = [{{weight}}(distances[i].Value()) for i in range(distances.size())]
         return dist
 
-    def shortest_path(self, unsigned n=1):
+    def shortest_path(self, unsigned n=1, bint unique=False, bint first_path=False):
         """fst.shortest_path(int n=1) -> transducer containing the n shortest paths"""
         if not isinstance(self, StdVectorFst):
             raise TypeError('Weight needs to have the path property and be right distributive')
         cdef {{fst}} result = {{fst}}(isyms=self.isyms, osyms=self.osyms)
-        libfst.ShortestPath(self.fst[0], result.fst, n)
+        libfst.ShortestPath(self.fst[0], result.fst, n, unique, first_path)
         return result
 
     def push(self, final=False, weights=False, labels=False):
